@@ -35,7 +35,7 @@ public class Main extends IterativeRobot {
     CANJaguar backLeft;
     Joystick joy;
     Joystick joy2;
-    Gyro gyro;
+    NerdyGyro gyro;
     double gyroAngle = 0;
     
     public void robotInit() {
@@ -46,28 +46,29 @@ public class Main extends IterativeRobot {
             backLeft = new CANJaguar(2);
             joy = new Joystick(1);
             joy2 = new Joystick(2);
-            gyro = new Gyro(2);
+            gyro = new NerdyGyro();
         } catch (CANTimeoutException ex) {
             ex.printStackTrace();
         }
+        gyro.begin();
     }
 
     /**
      * This function is called periodically during autonomous
      */
     public void autonomousPeriodic() {
-        gyroAngle = gyro.getAngle();
+        gyroAngle = gyro.getZ();
         SmartDashboard.putNumber("Gyro Angle", gyroAngle);
-        
+        gyro.update();
     }
 
     /**
      * This function is called periodically during operator control
      */
     
-    double gyroConstant = 1; //fix this!!!!!
     public void teleopPeriodic() {
-        gyroAngle = gyro.getAngle() * gyroConstant;
+        gyro.update();
+        gyroAngle = gyro.getZ();
         double gyroAngleRads = gyroAngle * Math.PI / 180;
         double desiredAngle = (MathUtils.atan2(joy.getY(), joy.getX())+3/2*Math.PI) % Math.PI;
         double relativeAngle = -(gyroAngleRads) + (desiredAngle) + 90;
