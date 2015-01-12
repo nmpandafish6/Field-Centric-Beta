@@ -56,11 +56,6 @@ public class Main extends IterativeRobot {
      * This function is called periodically during autonomous
      */
     public void autonomousPeriodic() {
-//        double analogGyroAngle = analog1.getAngle(), analog2GyroAngle = analog2.getAngle();
-//        SmartDashboard.putNumber("Gyro Angle", gyroAngle);
-//        SmartDashboard.putNumber("Analog Gyro 1", analogGyroAngle);
-//        SmartDashboard.putNumber("Analog Gyro 2", analog2GyroAngle);
-//        gyro.update();
     }
 
     /**
@@ -68,6 +63,11 @@ public class Main extends IterativeRobot {
      */
     double gyroConstant = -.5;
     public void teleopPeriodic() {
+        
+        if(joy.getRawButton(4)) {
+            gyro.reset();
+        }
+        
         SmartDashboard.putNumber("Robot Angle", gyroAngle);
         gyroAngle = gyro.getAngle();
         double gyroAngleRads = gyroAngle * Math.PI / 180 * gyroConstant;
@@ -76,38 +76,14 @@ public class Main extends IterativeRobot {
         double forward = Math.sin(relativeAngle);
         double strafe = Math.cos(relativeAngle);
         SmartDashboard.putNumber("Desired Angle", desiredAngle );
-        SmartDashboard.putNumber("RElative Angle", relativeAngle);
+        SmartDashboard.putNumber("Relative Angle", relativeAngle);
         double rotate = joy2.getX();
-        double scalar = 1/Math.abs((sqr(Math.sin(relativeAngle)) + sqr(Math.cos(relativeAngle)))/joy.getMagnitude());
+        double unscaledJoy[] = {Math.sin(desiredAngle), Math.cos(desiredAngle)};
+        double maxJoy[] = normalize(unscaledJoy, true);
+        double scalar = threshhold((sqr(joyY) + sqr(joyX)) / (sqr(maxJoy[0]) + sqr(maxJoy[1])));
         SmartDashboard.putNumber("Scalar", scalar);
         double kP = 0.00277778;
         boolean update = false;
-        
-        if(joy.getRawButton(4)) {
-            gyro.reset();
-        }
-//        double kI = 0.02;
-//        double kD = 0.00555556;
-        
-//        double error;
-//        if(((360-(staticAngle)+(gyroAngle))%360)>180)   {
-//            error = (360-((360-(staticAngle)+(gyroAngle))))%360;
-//        }   else    {
-//            error = (360-(staticAngle)+(gyroAngle)) % 360;
-//        }
-//        
-//        double rotate;
-//        
-//        if(Math.abs(rotation) > 0.05)    {
-//            rotate = rotation;
-//            update = true;
-//        }   else    {
-//            rotate = error * kP;
-//            if(update)  {
-//                staticAngle = gyroAngle;
-//            }
-//            update = false;
-//        }
         
         double ftLeft = (forward + strafe)*scalar + rotate;
         double ftRight = (-forward + strafe)*scalar + rotate;
@@ -116,7 +92,9 @@ public class Main extends IterativeRobot {
         
         SmartDashboard.putNumber("Strafe",strafe);
         SmartDashboard.putNumber("Forward",forward);
-        double output[] = normalize(ftLeft, ftRight, bkLeft, bkRight);
+        
+        double unnormalizedValues[] = {ftLeft, ftRight, bkLeft, bkRight};
+        double output[] = normalize(unnormalizedValues, false);
         
         ftLeft = output[0];
         ftRight = output[1];
@@ -126,7 +104,8 @@ public class Main extends IterativeRobot {
         SmartDashboard.putNumber("Front Left" , ftLeft);
         SmartDashboard.putNumber("Front Right" , ftRight);
         SmartDashboard.putNumber("Back Left" , bkLeft);
-        SmartDashboard.putNumber("Back Right" , ftRight);
+        SmartDashboard.putNumber("Back Right" , bkRight);
+        
         try{
             frontLeft.set(ftLeft);
             frontRight.set(ftRight);
@@ -148,22 +127,28 @@ public class Main extends IterativeRobot {
         return value*value;
     }
     
-    public double[] normalize(double value1, double value2, double value3, double value4){
-        double[] normalizedValues = new double[4];
-        double max = Math.max(Math.abs(value1), Math.abs(value2));
-        max = Math.max(Math.abs(value3), max);
-        max = Math.max(Math.abs(value4), max);
-        
-        if(max < 1) {
-            normalizedValues[0] = value1;
-            normalizedValues[1] = value2;
-            normalizedValues[2] = value3;
-            normalizedValues[3] = value4;
+    public static double threshhold(double value){
+        if(value > 0){
+            return Math.min(value, 1);
+        }else{
+            return Math.max(value, -1);
+        }
+    }
+    
+    public double[] normalize(double[] values, boolean scaleUp){
+        double[] normalizedValues = new double[values.length];
+        double max = Math.max(Math.abs(values[0]), Math.abs(values[1]));
+        for(int i = 2; i < values.length; i++){
+            max = Math.max(Math.abs(values[i]), max);
+        }
+        if(max < 1 && scaleUp == false) {
+            for(int i = 0; i < values.length; i++){
+                normalizedValues[i] = values[i];
+            }
         }   else    {
-        normalizedValues[0] = value1 / max;
-        normalizedValues[1] = value2 / max;
-        normalizedValues[2] = value3 / max;
-        normalizedValues[3] = value4 / max;
+            for(int i = 0; i < values.length; i++){
+                normalizedValues[i] = values[i] / max;
+            }
         }
         
         return normalizedValues;
